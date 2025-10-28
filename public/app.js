@@ -1,5 +1,27 @@
+let user;
+
+window.addEventListener("DOMContentLoaded", async () => {
+    const userDisplay = document.getElementById("loggedInUser");
+
+    try {
+        const res = await fetch("/me");
+        if (!res.ok) {
+            // Hvis ikke logget ind, send til login-side
+            window.location.href = "/login.html";
+            return;
+        }
+
+        const data = await res.json();
+        user = data.username
+        userDisplay.innerText = `Logget ind som: ${data.username}`;
+    } catch (err) {
+        userDisplay.innerText = "Fejl ved hentning af brugerinfo";
+    }
+});
+
+
 document.getElementById("createUserBtn").addEventListener("click", async () => {
-    
+
     const name = document.getElementById("userName").value
     const start = document.getElementById("startTime").value
     const end = document.getElementById("endTime").value
@@ -11,9 +33,8 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
 
     const datePart = end.split('T')[0]; // "2025-10-28"
     const [year, month, day] = datePart.split('-');
-    
 
- 
+
     document.getElementById("status").innerText = "Opretter bruger... Vent 30 sek."
 
     try {
@@ -23,7 +44,8 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
             body: JSON.stringify({
                 full_name: `${month}/${day} - ${name}`,
                 starts_at: new Date(start).toISOString(),
-                ends_at: new Date(end).toISOString()
+                ends_at: new Date(end).toISOString(),
+                user: user
             })
         })
 
@@ -38,5 +60,5 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
     } catch (err) {
         document.getElementById("status").innerText = "❌ Netværksfejl"
     }
-        
+
 })

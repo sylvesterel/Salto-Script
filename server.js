@@ -49,6 +49,13 @@ const authMiddleware = (req, res, next) => {
   return res.redirect("/login.html");
 };
 
+app.get("/me", (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: "Ikke logget ind" });
+  }
+  res.json({ username: req.session.user.username });
+});
+
 // ========================
 // SEAM KONFIGURATION
 // ========================
@@ -68,12 +75,14 @@ app.get("/", authMiddleware, (req, res) => {
 // ========================
 app.post("/create-user", authMiddleware, async (req, res) => {
   try {
-    const { full_name, starts_at, ends_at } = req.body;
+    const { full_name, starts_at, ends_at, user } = req.body;
+
+    const today = new Date();
 
     const acsUser = await seam.acs.users.create({
       full_name,
       acs_system_id: acsSystemId,
-      access_schedule: { starts_at, ends_at },
+      access_schedule: { starts_at: today, ends_at },
     });
 
     await seam.acs.users.addToAccessGroup({
@@ -101,6 +110,16 @@ app.post("/create-user", authMiddleware, async (req, res) => {
       pin_code: pin || "Genereres..."
     });
 
+    console.log(`${user} oprettede pinkode til ${full_name}`)
+
+    await seam.acs.users.update({
+      acs_user_id: acsUser.acs_user_id,
+      access_schedule: {
+        starts_at: starts_at,
+        ends_at: ends_at,
+      },
+    });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Kunne ikke oprette bruger" });
@@ -120,9 +139,23 @@ async function blockUnsubscribedUsers() {
       );
 
       if (notSubscribedWarning && user.is_suspended === false) {
-        console.log(`Blokerer unsubscribed bruger: ${user.full_name}`);
-        await seam.acs.users.suspend({ acs_user_id: user.acs_user_id });
-        console.log(`${user.full_name} er nu blokeret`);
+        console.log(`${user.full_name} er suspened`)
+        if (user.access_schedule) {
+          console.log(`${user.full_name} har schedule`)
+          const end = new Date(user.access_schedule.ends_at)
+          const today = new Date();
+          if (today > end) {
+            console.log(`Blokerer unsubscribed bruger: ${user.full_name}`);
+            await seam.acs.users.suspend({ acs_user_id: user.acs_user_id });
+            console.log(`${user.full_name} er nu blokeret`);
+          } else {
+            console.log(`${user.full_name} har ikke nået end dato endnu.`)
+          }
+        } else {
+          console.log(`Blokerer unsubscribed bruger: ${user.full_name}`);
+          await seam.acs.users.suspend({ acs_user_id: user.acs_user_id });
+          console.log(`${user.full_name} er nu blokeret`);
+        }
       }
     }
   } catch (err) {
@@ -130,7 +163,9 @@ async function blockUnsubscribedUsers() {
   }
 }
 
-setInterval(blockUnsubscribedUsers, 30 * 1000);
+blockUnsubscribedUsers();
+
+setInterval(blockUnsubscribedUsers, 60 * 1000);
 
 // ========================
 // START SERVER
