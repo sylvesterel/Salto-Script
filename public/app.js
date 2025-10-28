@@ -8,7 +8,7 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
         return
     }
 
-    document.getElementById("status").innerText = "Opretter bruger..."
+    document.getElementById("status").innerText = "Opretter bruger... Vent 30 sek."
 
     try {
         const res = await fetch("/create-user", {

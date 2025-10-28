@@ -7,25 +7,52 @@
     <link rel="stylesheet" href="/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+        rel="stylesheet">
 </head>
 
 <body>
-    <div class="container">
-        <h1>SLUSE ADGANG</h1>
 
-        <label>Artist</label>
-        <input type="text" id="userName" placeholder="Indtast navn">
+    <div class="image-side">
+        <img src="img/image.png">
+    </div>
+    <div class="create-side">
 
-        <label>Starttidspunkt</label>
-        <input type="datetime-local" id="startTime">
+        <div class="create-wrapper">
+            <h1>Opret Artist</h1>
+        </div>
 
-        <label>Sluttidspunkt</label>
-        <input type="datetime-local" id="endTime">
+        <div class="create-container">
+            <div class="input-wrapper">
 
-        <button id="createUserBtn">Opret Artist</button>
+                <div style="margin-top: 20px;">
+                    <label>Projekt</label>
+                    <input type="text" id="userName" placeholder="Indtast navn">
+                </div>
 
-        <div id="status"></div>
+                <div>
+                    <label>Starttidspunkt</label>
+                    <input type="datetime-local" id="startTime">
+                </div>
+
+                <div>
+                    <label>Sluttidspunkt</label>
+                    <input type="datetime-local" id="endTime">
+                </div>
+
+            </div>
+
+            <div class="button-wrapper">
+                <button id="createUserBtn">Opret Artist</button>
+                <div id="status"></div>
+            </div>
+
+        </div>
+        <div class="text-wrapper">
+            <p>Oprettelsen af brugeren og genereringen af pinkoden kan tage op til 30 sekunder, da der udføres API-kald i baggrunden.</p>
+            <br/>
+            <p>Bemærk, at sluttidspunkttet for en bruger har en margin på op til ±15 minutter.</p>
+        </div>
     </div>
 
     <script src="/app.js"></script>
