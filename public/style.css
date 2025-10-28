@@ -14,14 +14,24 @@ body {
 .image-side {
     width: 45%;
     height: 100%;
-    filter: blur(2px);
+    overflow: hidden;
+
     img {
-        width: 110%;
-        height: 110%;
+        width: 100%;
+        height: 100%;
         object-fit: cover;
         object-position: 50% 50%;
-        margin: -5px;
     }
+}
+
+.image-side::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(3px);
 }
 
 .login-side {
@@ -36,13 +46,13 @@ body {
     gap: 40px;
 
     .login-wrapper {
-            h1 {
-                font-size: 3rem;
-                font-weight: 200;
-                text-transform: uppercase;
-            }
+        h1 {
+            font-size: 3rem;
+            font-weight: 200;
+            text-transform: uppercase;
         }
-    
+    }
+
     .login-container {
         display: flex;
         flex-direction: column;
@@ -55,7 +65,7 @@ body {
         width: 250px;
         text-align: center;
         height: 300px;
-        
+
         #status {
             color: red;
         }
@@ -112,18 +122,18 @@ body {
     gap: 40px;
 
     .create-wrapper {
-            h1 {
-                font-size: 3rem;
-                font-weight: 200;
-                text-transform: uppercase;
-            }
+        h1 {
+            font-size: 3rem;
+            font-weight: 200;
+            text-transform: uppercase;
         }
+    }
 
     .text-wrapper {
         padding: 0 10rem;
         text-align: center;
     }
-    
+
     .create-container {
         display: flex;
         flex-direction: column;
@@ -136,7 +146,7 @@ body {
         width: 250px;
         text-align: center;
         height: 400px;
-        
+
         .input-wrapper {
             display: flex;
             flex-direction: column;

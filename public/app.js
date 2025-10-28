@@ -1,4 +1,5 @@
 document.getElementById("createUserBtn").addEventListener("click", async () => {
+    
     const name = document.getElementById("userName").value
     const start = document.getElementById("startTime").value
     const end = document.getElementById("endTime").value
@@ -8,6 +9,11 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
         return
     }
 
+    const datePart = end.split('T')[0]; // "2025-10-28"
+    const [year, month, day] = datePart.split('-');
+    
+
+ 
     document.getElementById("status").innerText = "Opretter bruger... Vent 30 sek."
 
     try {
@@ -15,7 +21,7 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                full_name: name,
+                full_name: `${month}/${day} - ${name}`,
                 starts_at: new Date(start).toISOString(),
                 ends_at: new Date(end).toISOString()
             })
@@ -24,7 +30,7 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
         const data = await res.json()
         if (res.ok) {
             document.getElementById("status").innerText =
-                `✅ Bruger oprettet. PIN: ${data.pin_code || "Genereres..."}`
+                `✅ Bruger oprettet. PIN: ${data.pin_code || "Genereres..."} + #`
         } else {
             document.getElementById("status").innerText =
                 "❌ Fejl: " + data.error
@@ -32,4 +38,5 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
     } catch (err) {
         document.getElementById("status").innerText = "❌ Netværksfejl"
     }
+        
 })
