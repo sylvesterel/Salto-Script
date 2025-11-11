@@ -77,6 +77,8 @@ app.post("/create-user", authMiddleware, async (req, res) => {
   try {
     const { full_name, starts_at, ends_at, user } = req.body;
 
+    res.write(`${user} Opretter bruger ${full_name}` + "\n")
+
     const today = new Date();
 
     const acsUser = await seam.acs.users.create({
@@ -85,30 +87,39 @@ app.post("/create-user", authMiddleware, async (req, res) => {
       access_schedule: { starts_at: today, ends_at },
     });
 
+    res.write(`Bruger oprettet med ID ${acsUser.acs_user_id}` + "\n");
+
     await seam.acs.users.addToAccessGroup({
       acs_user_id: acsUser.acs_user_id,
       acs_access_group_id: accessGroupId,
     });
+
+    res.write(`Tilføjer til rettighedsgruppe` + "\n");
 
     const credential = await seam.acs.credentials.create({
       acs_user_id: acsUser.acs_user_id,
       access_method: "code",
     });
 
+    res.write(`Anmoder om pinkode. Vent venligst` + "\n");
+
     let pin = null;
     const startTime = Date.now();
     while (!pin && Date.now() - startTime < 60000) {
+      res.write(`Prøver at hente pinkode.`);
       const userCred = await seam.acs.credentials.get({
         acs_credential_id: credential.acs_credential_id,
       });
-      if (userCred.code) pin = userCred.code;
-      else await new Promise((r) => setTimeout(r, 2000));
+      if (userCred.code) {
+        pin = userCred.code
+        res.write(`Pinkode hentet`);
+      } else {
+        res.write(`Kunne ikke hente pinkode`);
+        await new Promise((r) => setTimeout(r, 2000));
+      }
     }
 
-    res.json({
-      user: acsUser,
-      pin_code: pin || "Genereres..."
-    });
+    res.write(`Pinkode generet: ${pin}`);
 
     console.log(`${user} oprettede pinkode til ${full_name}`)
 
@@ -122,7 +133,8 @@ app.post("/create-user", authMiddleware, async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Kunne ikke oprette bruger" });
+    res.write(`Seam.co's API endpoint fejlede` + "\n");
+    res.end();
   }
 });
 
@@ -141,15 +153,11 @@ async function blockUnsubscribedUsers() {
       if (notSubscribedWarning && user.is_suspended === false) {
         console.log(`${user.full_name} er suspened`)
         if (user.access_schedule) {
-          console.log(`${user.full_name} har schedule`)
           const end = new Date(user.access_schedule.ends_at)
           const today = new Date();
           if (today > end) {
             console.log(`Blokerer unsubscribed bruger: ${user.full_name}`);
             await seam.acs.users.suspend({ acs_user_id: user.acs_user_id });
-            console.log(`${user.full_name} er nu blokeret`);
-          } else {
-            console.log(`${user.full_name} har ikke nået end dato endnu.`)
           }
         } else {
           console.log(`Blokerer unsubscribed bruger: ${user.full_name}`);

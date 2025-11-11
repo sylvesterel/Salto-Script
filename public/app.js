@@ -1,4 +1,9 @@
 let user;
+const statusFragment = document.createDocumentFragment();
+
+const statusList = document.querySelector('#user-list')
+
+const userInfo = document.querySelector('.user-info')
 
 window.addEventListener("DOMContentLoaded", async () => {
     const userDisplay = document.getElementById("loggedInUser");
@@ -19,6 +24,21 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 });
 
+async function updateStatus(info) {
+
+    const newInfoElement = document.createElement('li')
+    const now = new Date();
+
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+
+    const statusTime = `${hours}.${minutes}.${seconds}`
+
+    newInfoElement.textContent = `${statusTime} | ${info}`
+    statusList.appendChild(newInfoElement)
+}
+
 
 document.getElementById("createUserBtn").addEventListener("click", async () => {
 
@@ -26,16 +46,21 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
     const start = document.getElementById("startTime").value
     const end = document.getElementById("endTime").value
 
+
+
     if (!name || !start || !end) {
         document.getElementById("status").innerText = "Udfyld alle felter!"
         return
     }
+
+    userInfo.style.display = 'block';
 
     const datePart = end.split('T')[0]; // "2025-10-28"
     const [year, month, day] = datePart.split('-');
 
 
     document.getElementById("status").innerText = "Opretter bruger... Vent 30 sek."
+    await updateStatus(`Opretter bruger`)
 
     try {
         const res = await fetch("/create-user", {
@@ -49,16 +74,23 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
             })
         })
 
-        const data = await res.json()
-        if (res.ok) {
-            document.getElementById("status").innerText =
-                `✅ Bruger oprettet. PIN: ${data.pin_code || "Genereres..."} + #`
-        } else {
-            document.getElementById("status").innerText =
-                "❌ Fejl: " + data.error
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let done = false;
+
+        while (!done) {
+            const { value, done: readerDone } = await reader.read();
+            done = readerDone;
+            if (value) {
+                const text = decoder.decode(value);
+                text.split("\n").forEach((line) => {
+                    if (line.trim()) updateStatus(line.trim());
+                });
+            }
         }
+
     } catch (err) {
-        document.getElementById("status").innerText = "❌ Netværksfejl"
+        updateStatus(`Intern serverfejl. Kontakt administrator`)
     }
 
 })
