@@ -77,6 +77,9 @@ app.post("/create-user", authMiddleware, async (req, res) => {
 	try {
 		const { full_name, starts_at, ends_at, user } = req.body;
 
+		res.setHeader("Content-Type", "text/plain; charset=utf-8");
+		res.setHeader("Transfer-Encoding", "chunked");
+
 		res.write(`${user} Opretter bruger ${full_name}` + "\n")
 
 		const today = new Date();
@@ -119,10 +122,10 @@ app.post("/create-user", authMiddleware, async (req, res) => {
 		}
 
 		if (pin === null) {
-			res.write(`SEAM-FEJL-500`);
+			res.write(`SEAM-FEJL-500` + "\n");
 
 		} else {
-			res.write(`Pinkode generet: <b>${pin}+ #</b>`);
+			res.write(`Pinkode generet: <b>${pin}+ #</b>` + "\n");
 
 			console.log(`${user} oprettede pinkode til ${full_name}`)
 
@@ -135,7 +138,8 @@ app.post("/create-user", authMiddleware, async (req, res) => {
 			});
 		}
 
-		
+		res.end()
+
 
 	} catch (err) {
 		console.error(err);
