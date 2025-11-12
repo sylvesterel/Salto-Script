@@ -10,148 +10,113 @@ dotenv.config();
 const app = express();
 const port = 8080;
 
-// ========================
 // Middleware
-// ========================
 app.use(bodyParser.json());
 app.use(session({
-	secret: process.env.SECRET,
-	resave: false,
-	saveUninitialized: true
+    secret: process.env.SECRET,
+    resave: false,
+    saveUninitialized: true
 }));
 
-// Kun offentlige filer (login, JS, CSS)
 app.use(express.static(path.join(process.cwd(), "public")));
 
-// ========================
 // Simpel login
-// ========================
 let USERS;
 try {
-	USERS = JSON.parse(process.env.USERS || '[]');
+    USERS = JSON.parse(process.env.USERS || '[]');
 } catch (err) {
-	console.error('Kunne ikke parse USERS fra .env:', err);
-	USERS = [];
+    console.error('Kunne ikke parse USERS fra .env:', err);
+    USERS = [];
 }
 
 app.post("/login", (req, res) => {
-	const { username, password } = req.body;
-	const user = USERS.find(u => u.username === username && u.password === password);
-	if (!user) return res.status(401).json({ error: "Ugyldigt login" });
-
-	req.session.user = { username };
-	res.json({ success: true });
+    const { username, password } = req.body;
+    const user = USERS.find(u => u.username === username && u.password === password);
+    if (!user) return res.status(401).json({ error: "Ugyldigt login" });
+    req.session.user = { username };
+    res.json({ success: true });
 });
 
-// Middleware til beskyttede sider
 const authMiddleware = (req, res, next) => {
-	if (req.session.user) return next();
-	return res.redirect("/login.html");
+    if (req.session.user) return next();
+    return res.redirect("/login.html");
 };
 
 app.get("/me", (req, res) => {
-	if (!req.session.user) {
-		return res.status(401).json({ error: "Ikke logget ind" });
-	}
-	res.json({ username: req.session.user.username });
+    if (!req.session.user) return res.status(401).json({ error: "Ikke logget ind" });
+    res.json({ username: req.session.user.username });
 });
 
-// ========================
-// SEAM KONFIGURATION
-// ========================
+app.get("/", authMiddleware, (req, res) => {
+    res.sendFile(path.join(process.cwd(), "protected", "index.html"));
+});
+
+// SEAM
 const seam = new Seam({ apiKey: process.env.SEAM_API });
 const acsSystemId = process.env.SEAM_ACS_SYSTEM_ID;
 const accessGroupId = process.env.SEAM_ACCESS_GROUP;
 
-// ========================
-// Beskyttet route
-// ========================
-app.get("/", authMiddleware, (req, res) => {
-	res.sendFile(path.join(process.cwd(), "protected", "index.html"));
-});
-
-// ========================
-// Opret bruger + credential
-// ========================
 app.post("/create-user", authMiddleware, async (req, res) => {
-	try {
-		const { full_name, starts_at, ends_at, user } = req.body;
+    try {
+        const { full_name, starts_at, ends_at, user } = req.body;
 
-		res.setHeader("Content-Type", "text/plain; charset=utf-8");
-		res.setHeader("Transfer-Encoding", "chunked");
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Transfer-Encoding", "chunked");
+        const writeStatus = msg => res.write(msg + "\n");
 
-		res.write(`${user} Opretter bruger ${full_name}` + "\n")
+        writeStatus(`${user} Opretter bruger ${full_name}`);
 
-		const today = new Date();
+        const today = new Date();
 
-		const acsUser = await seam.acs.users.create({
-			full_name,
-			acs_system_id: acsSystemId,
-			access_schedule: { starts_at: today, ends_at },
-		});
+        const acsUser = await seam.acs.users.create({
+            full_name,
+            acs_system_id: acsSystemId,
+            access_schedule: { starts_at: today, ends_at },
+        });
+        writeStatus(`Bruger oprettet med ID ${acsUser.acs_user_id}`);
 
-		res.write(`Bruger oprettet med ID ${acsUser.acs_user_id}` + "\n");
+        await seam.acs.users.addToAccessGroup({
+            acs_user_id: acsUser.acs_user_id,
+            acs_access_group_id: accessGroupId,
+        });
+        writeStatus(`Tilføjet til access group`);
 
-		await seam.acs.users.addToAccessGroup({
-			acs_user_id: acsUser.acs_user_id,
-			acs_access_group_id: accessGroupId,
-		});
+        const credential = await seam.acs.credentials.create({
+            acs_user_id: acsUser.acs_user_id,
+            access_method: "code",
+        });
+        writeStatus(`Credential oprettet. Start polling for pinkode...`);
 
-		res.write(`Tilføjer til access group` + "\n");
+        writeStatus(`CREDENTIAL_ID:${credential.acs_credential_id}`);
 
-		const credential = await seam.acs.credentials.create({
-			acs_user_id: acsUser.acs_user_id,
-			access_method: "code",
-		});
+        res.end();
 
-		res.write(`Anmoder om pinkode.` + "\n");
+    } catch (err) {
+        console.error(err);
+        res.write("SEAM API fejlede");
+        res.end();
+    }
+});
 
-		let pin = null;
-		const startTime = Date.now();
-		res.write(`Starter pinkode loop. Gns. 30 sek. / Timeout: 5 min.` + "\n");
+app.get("/check-pin", authMiddleware, async (req, res) => {
+    try {
+        const { credential_id } = req.query;
+        if (!credential_id) return res.status(400).json({ error: "Ingen credential_id" });
 
-		while (!pin && Date.now() - startTime < 300000) {
-			const userCred = await seam.acs.credentials.get({
-				acs_credential_id: credential.acs_credential_id,
-			});
-			if (userCred.code !== null) {
-				pin = userCred.code
-			} else {
-				await new Promise((r) => setTimeout(r, 5000));
-			}
-		}
+        const userCred = await seam.acs.credentials.get({ acs_credential_id: credential_id });
+        if (userCred.code !== null) {
+            res.json({ pin: userCred.code });
+        } else {
+            res.json({ pin: null });
+        }
 
-		if (pin === null) {
-			res.write(`SEAM-FEJL-500` + "\n");
-
-		} else {
-			res.write(`Pinkode generet: <b>${pin}+ #</b>` + "\n");
-
-			console.log(`${user} oprettede pinkode til ${full_name}`)
-
-			await seam.acs.users.update({
-				acs_user_id: acsUser.acs_user_id,
-				access_schedule: {
-					starts_at: starts_at,
-					ends_at: ends_at,
-				},
-			});
-		}
-
-		res.end()
-
-
-	} catch (err) {
-		console.error(err);
-		res.write(`Seam.co's API endpoint fejlede` + "\n");
-		res.end();
-	}
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Fejl ved hentning af pinkode" });
+    }
 });
 
 
-// ========================
-// Bloker unsubscribed brugere
-// ========================
 async function blockUnsubscribedUsers() {
 	try {
 		const users = await seam.acs.users.list({ acs_system_id: acsSystemId });
@@ -186,7 +151,4 @@ blockUnsubscribedUsers();
 
 setInterval(blockUnsubscribedUsers, 60 * 1000);
 
-// ========================
-// START SERVER
-// ========================
 app.listen(port, () => console.log(`Server kører på port ${port}`));
