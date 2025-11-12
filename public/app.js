@@ -51,6 +51,16 @@ function updateStatus(info, clear) {
     statusList.appendChild(newInfoElement)
 }
 
+const inputs = document.querySelectorAll("#userName, #startTime, #endTime");
+
+inputs.forEach(input => {
+    input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") { 
+            event.preventDefault();
+            createBtn.click();
+        }
+    });
+});
 
 createBtn.addEventListener("click", async () => {
 
@@ -118,5 +128,5 @@ createBtn.addEventListener("click", async () => {
         statusText.textContent = ""
         createBtn.disabled = false
     }
-    
+
 })
