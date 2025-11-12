@@ -4,6 +4,8 @@ const statusFragment = document.createDocumentFragment();
 const statusList = document.querySelector('#user-list')
 
 const userInfo = document.querySelector('.user-info')
+const createBtn = document.querySelector('#createUserBtn');
+const statusText = document.querySelector('#status')
 
 window.addEventListener("DOMContentLoaded", async () => {
     const userDisplay = document.getElementById("loggedInUser");
@@ -11,7 +13,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     try {
         const res = await fetch("/me");
         if (!res.ok) {
-            // Hvis ikke logget ind, send til login-side
             window.location.href = "/login.html";
             return;
         }
@@ -24,7 +25,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
 });
 
-async function updateStatus(info) {
+function updateStatus(info, clear) {
 
     const newInfoElement = document.createElement('li')
     const now = new Date();
@@ -35,33 +36,53 @@ async function updateStatus(info) {
 
     const statusTime = `${hours}.${minutes}.${seconds}`
 
+    if (clear) {
+        while (statusList.firstChild) {
+            console.log(statusList.firstChild);
+            statusList.removeChild(statusList.firstChild);
+        }
+        if (info === "SEAM-FEJL-500") {
+            info = "API'en mellem Salto og Tourcare er timeout i forsøg på at hente pinkode. Sylle kender fejlen, og er ved at få den udredet med Salto :). For nu, gå til app.salto.com, og manuelt opret en bruger eller kom tilbage senere. Sletter forespurgte bruger."
+        }
+        newInfoElement.textContent = `${statusTime} | ${info}`
+    }
+
     newInfoElement.textContent = `${statusTime} | ${info}`
     statusList.appendChild(newInfoElement)
 }
 
 
-document.getElementById("createUserBtn").addEventListener("click", async () => {
+createBtn.addEventListener("click", async () => {
 
     const name = document.getElementById("userName").value
     const start = document.getElementById("startTime").value
     const end = document.getElementById("endTime").value
 
-
+    createBtn.disabled = true
 
     if (!name || !start || !end) {
-        document.getElementById("status").innerText = "Udfyld alle felter!"
+        statusText.textContent = "Udfyld alle felter!"
+        createBtn.style.display = 'none';
+
+        await setTimeout(() => {
+            createBtn.style.display = ''
+            statusText.textContent = ""
+        }, 3000)
+        createBtn.disabled = false
         return
     }
+    createBtn.title = `Opretter bruger ${name}, vent venligst.`;
 
     userInfo.style.display = 'block';
 
     const datePart = end.split('T')[0]; // "2025-10-28"
     const [year, month, day] = datePart.split('-');
 
+    statusText.textContent = "Vent venligst"
+    createBtn.style.display = 'none';
 
-    document.getElementById("status").innerText = "Opretter bruger... Vent 30 sek."
-    await updateStatus(`Opretter bruger`)
-
+    updateStatus(`Opretter bruger`)
+    
     try {
         const res = await fetch("/create-user", {
             method: "POST",
@@ -90,7 +111,12 @@ document.getElementById("createUserBtn").addEventListener("click", async () => {
         }
 
     } catch (err) {
-        updateStatus(`Intern serverfejl. Kontakt administrator`)
-    }
+        updateStatus(err, true)
 
+    } finally {
+        createBtn.style.display = ''
+        statusText.textContent = ""
+        createBtn.disabled = false
+    }
+    
 })

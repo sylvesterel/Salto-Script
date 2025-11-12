@@ -49,8 +49,8 @@ body {
 
         .user-status {
             padding: 18px 5px;
-            #status-list {
-                overflow: scroll;
+            #user-list {
+                overflow: hidden auto;
             }
             li {
                 list-style: none;
